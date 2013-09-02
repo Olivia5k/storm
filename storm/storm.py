@@ -297,6 +297,10 @@ class StormFormatter():
         return ret
 
 
+class StfuFormatter():
+    pass
+
+
 def interval(sleep):
     def real_decorator(function):
         def wrapper(self, *args, **kwargs):
@@ -524,6 +528,7 @@ class Storm():
 
 def main():
     formatter = StormFormatter()
+    # formatter = StfuFormatter()
     storm = Storm(formatter)
     storm.setup()
     storm.run()
