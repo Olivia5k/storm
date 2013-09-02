@@ -4,10 +4,13 @@ import os
 import re
 import sys
 import time
+import glob
 import socket
 import threading
 import datetime
+import asyncore
 import subprocess as sub
+import pyinotify as inf
 
 from os.path import join
 
@@ -33,14 +36,14 @@ class StormFormatter():
             "sep": "#a8c411",
         }
 
-        self.icons = join(
-            os.getenv('HOME'),
-            '.local/share/infect/misc/x11/storm/storm/icons'
+        # XXX: Will only work if ran from bin/storm. Iz problem?
+        self.icons = os.path.abspath(
+            join(sys.argv[0], '..', '..', 'storm', 'icons')
         )
 
     def colorize(self, text, fg=None, bg=None):
-        fg = self.colors[fg] if fg is not None else self.colors["fg_1"]
-        bg = self.colors[bg] if bg is not None else self.colors["bg_1"]
+        fg = self.colors[fg] if fg else self.colors["fg_1"]
+        bg = self.colors[bg] if bg else self.colors["bg_1"]
         return "^fg(%s)^bg(%s)%s^fg()^bg()" % (fg, bg, text)
 
     def icon(self, icon, fg=None, bg=None):
@@ -300,6 +303,9 @@ class StormFormatter():
 
         return ret
 
+    def mail(self, data):
+        return "%s %s" % (self.icon('mail'), self.colorize(data))
+
 
 class StfuFormatter():
     pass
@@ -314,7 +320,7 @@ class Hooker():
                     ret = function(self)
 
                     fn = function.__name__
-                    self.write(fn, ret)
+                    self.write(fn, ret, sleep > 5)
 
                     time.sleep(sleep)
 
@@ -363,6 +369,29 @@ class Hooker():
         wrapper.runner = True
         return wrapper
 
+    @staticmethod
+    def inotify(path, mask):
+        def real_decorator(function):
+            class EventHandler(inf.ProcessEvent):
+                def __init__(self, storm, *args, **kwargs):
+                    self.storm = storm
+                    super().__init__(*args, **kwargs)
+
+                def process_default(self, event):
+                    ret = function(self.storm)
+                    fn = function.__name__
+                    self.storm.write(fn, ret)
+
+            def wrapper(self, *args, **kwargs):
+                wm = inf.WatchManager()
+                inf.AsyncNotifier(wm, EventHandler(self))
+                wm.add_watch(path, mask, rec=True)
+                asyncore.loop()
+
+            wrapper.runner = True
+            return wrapper
+        return real_decorator
+
 
 class Storm():
     def __init__(self, formatter):
@@ -370,7 +399,6 @@ class Storm():
         self.monitor = "0"
 
     def setup(self):
-
         xdg = os.getenv(
             'XDG_CACHE_HOME',
             join(os.getenv('HOME'), '.cache')
@@ -393,12 +421,13 @@ class Storm():
                 t.daemon = False
                 t.start()
 
-    def write(self, fn, data):
+    def write(self, fn, data, output=True):
         if hasattr(self.formatter, fn):
             func = getattr(self.formatter, fn)
             data = func(data)
 
-        print("Writing {0}".format(fn))
+        if output:
+            print("Writing {0}".format(fn))
 
         path = join(self.cwd, fn)
         with open(path, 'w') as fp:
@@ -530,6 +559,12 @@ class Storm():
             "ac_connected": ac_connected,
             "time_left": time_left
         }
+
+    @Hooker.inotify('/home/thiderman/.mail', inf.IN_MODIFY)
+    def mail(self):
+        mail = glob.glob('/home/thiderman/.mail/*/*/new/*')
+        mail = filter(lambda m: '/archive/' not in m, mail)
+        return len(list(mail))
 
 
 def main():

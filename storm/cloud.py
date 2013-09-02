@@ -26,8 +26,8 @@ class Descriptor():
 
 class EventHandler(inf.ProcessEvent):
     items = [
-        'tags', 'windowtitle', 'kernel', 'packages', 'processes', 'mem_swap',
-        'load', 'power', 'volume', 'network', 'date', 'hostname'
+        'tags', 'windowtitle', 'kernel', 'packages', 'processes', 'mail',
+        'mem_swap', 'load', 'power', 'volume', 'network', 'date', 'hostname',
     ]
     descriptors = {}
 
