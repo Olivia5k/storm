@@ -74,6 +74,9 @@ class StormFormatter():
             elif state == "!":
                 # Urgent tag
                 tag_design = self.colorize(" %s " % tag, fg="bg_1", bg="crit")
+            elif state == ".":
+                # Emtpty tag
+                continue
             else:
                 # Regular ol' tag
                 tag_design = self.colorize(" %s " % tag)
