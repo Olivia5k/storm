@@ -218,8 +218,6 @@ class StormFormatter():
         }
 
         """
-        # volume = alsaaudio.Mixer().getvolume()[0]
-        # muted = alsaaudio.Mixer().getmute()[0]
         if data["volume"] < 35:
             icon = self.icon("spkr_02")
         else:
@@ -227,11 +225,11 @@ class StormFormatter():
 
         if data["muted"]:
             volume = "%s %s" % (
-                self.colorize(data["volume"], fg="fg_2"),
+                self.colorize("%s%%" % data["volume"], fg="fg_2"),
                 self.colorize("(Mute)", fg="dead")
             )
         else:
-            volume = self.colorize(data["volume"])
+            volume = self.colorize("%s%%" % data["volume"])
 
         return "%s %s" % (icon, volume)
 
