@@ -32,7 +32,7 @@ class StormFormatter():
 
         self.icons = join(
             os.getenv('HOME'),
-            '.local/share/infect/misc/x11/storm/icons'
+            '.local/share/infect/misc/x11/storm/storm/icons'
         )
 
     def colorize(self, text, fg=None, bg=None):
