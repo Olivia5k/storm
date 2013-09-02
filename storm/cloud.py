@@ -25,7 +25,10 @@ class Descriptor():
 
 
 class EventHandler(inf.ProcessEvent):
-    items = ['tags', 'hostname', 'load', 'packages', 'processes', 'date']
+    items = [
+        'tags', 'windowtitle', 'kernel', 'packages', 'processes', 'mem_swap',
+        'load', 'power', 'volume', 'network', 'date', 'hostname'
+    ]
     descriptors = {}
 
     def load_descriptors(self):

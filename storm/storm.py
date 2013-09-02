@@ -409,7 +409,7 @@ class Storm():
         ).communicate()[0].decode()
         return output
 
-    @hlwm("focus_changed")
+    @hlwm("focus")
     def windowtitle(self, hook):
         return hook[2]
 
@@ -487,7 +487,7 @@ class Storm():
             "new": new_pkgs
         }
 
-    @interval(20)
+    @interval(1)
     def volume(self):
         return {
             "volume": alsaaudio.Mixer().getvolume()[0],
@@ -541,7 +541,10 @@ def main():
 
         p1 = sub.Popen([sys.argv[0], 'cloud'], stdout=sub.PIPE, bufsize=0)
         p2 = sub.Popen(
-            ['dzen2', '-dock', '-ta', 'l', '-sa', 'rc', '-fn', font],
+            [
+                'dzen2', '-dock', '-ta', 'l', '-sa', 'rc',
+                '-fn', font, '-h', '17'
+            ],
             # ['tee'],
             bufsize=0,
             stdin=p1.stdout,
