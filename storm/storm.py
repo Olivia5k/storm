@@ -384,12 +384,11 @@ class Storm():
                 t.start()
 
     def write(self, fn, data):
-        # print("Writing {0} to {1}".format(data, fn))
-
         if hasattr(self.formatter, fn):
             func = getattr(self.formatter, fn)
             data = func(data)
-        print(data)
+
+        print("Writing {0} to {1}".format(data, fn))
 
         path = join(self.cwd, fn)
         with open(path, 'w') as fp:
