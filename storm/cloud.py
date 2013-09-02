@@ -1,4 +1,5 @@
 import os
+import sys
 import pyinotify as inf
 import asyncore
 
@@ -24,7 +25,7 @@ class Descriptor():
 
 
 class EventHandler(inf.ProcessEvent):
-    items = ['hostname', 'load']
+    items = ['tags', 'hostname', 'load', 'packages', 'processes', 'date']
     descriptors = {}
 
     def load_descriptors(self):
@@ -52,9 +53,11 @@ class EventHandler(inf.ProcessEvent):
         # print('{0} on: {1}'.format(event.maskname, event.pathname))
         line = []
         for item in self.items:
-            line.append(self.descriptors[item].read())
+            if item in self.descriptors:
+                line.append(self.descriptors[item].read())
 
-        print(' '.join(line))
+        sys.stdout.write('\n' + ' '.join(line))
+        sys.stdout.flush()
 
     def process_IN_CREATE(self, event):
         name = self.filename(event.pathname)
@@ -65,16 +68,20 @@ class EventHandler(inf.ProcessEvent):
 
     process_IN_DELETE = handle
     process_IN_CLOSE_WRITE = handle
+    process_IN_MODIFY = handle
 
 
 class Cloud():
     def start(self):
-        mask = inf.IN_DELETE | inf.IN_CREATE | inf.IN_CLOSE_WRITE
+        mask = inf.IN_DELETE | inf.IN_CREATE | inf.IN_MODIFY
         wm = inf.WatchManager()
         eh = EventHandler()
         eh.load_descriptors()
         inf.AsyncNotifier(wm, eh)
         wm.add_watch(ROOT, mask, rec=True)
+
+        # Run the initial grab of data
+        eh.handle(None)
 
         asyncore.loop()
 

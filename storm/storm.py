@@ -1,7 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python -u
 
 import os
 import re
+import sys
 import time
 import socket
 import threading
@@ -12,6 +13,8 @@ from os.path import join
 
 import alsaaudio
 import psutil
+
+from storm import cloud
 
 
 class StormFormatter():
@@ -392,7 +395,7 @@ class Storm():
             func = getattr(self.formatter, fn)
             data = func(data)
 
-        print("Writing {0} to {1}".format(data, fn))
+        print("Writing {0}".format(fn))
 
         path = join(self.cwd, fn)
         with open(path, 'w') as fp:
@@ -432,7 +435,7 @@ class Storm():
 
         return ip
 
-    @interval(1)
+    @interval(7)
     def load(self):
         return os.getloadavg()
 
@@ -484,7 +487,7 @@ class Storm():
             "new": new_pkgs
         }
 
-    @interval(1)
+    @interval(20)
     def volume(self):
         return {
             "volume": alsaaudio.Mixer().getvolume()[0],
@@ -527,11 +530,45 @@ class Storm():
 
 
 def main():
-    formatter = StormFormatter()
-    # formatter = StfuFormatter()
-    storm = Storm(formatter)
-    storm.setup()
-    storm.run()
+    if len(sys.argv) > 1:
+        # Argument given, start the cloudz!
+        print('Summoning clouds...')
+        cloud.main()
+        sys.exit(0)
+
+    def cloud_thread():
+        font = "-*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*"
+
+        p1 = sub.Popen([sys.argv[0], 'cloud'], stdout=sub.PIPE, bufsize=0)
+        p2 = sub.Popen(
+            ['dzen2', '-dock', '-ta', 'l', '-sa', 'rc', '-fn', font],
+            # ['tee'],
+            bufsize=0,
+            stdin=p1.stdout,
+            stderr=sub.PIPE,
+            stdout=sub.PIPE,
+        )
+        # p1.stdout.close()
+
+        # Will run 5eva
+        print('Starting dem cloud')
+        p2.wait()
+
+    def storm_thread():
+        print('Conjuring the storm...')
+        formatter = StormFormatter()
+        # formatter = StfuFormatter()
+        storm = Storm(formatter)
+        storm.setup()
+        storm.run()
+
+    ct = threading.Thread(None, cloud_thread)
+    ct.daemon = False
+    ct.start()
+
+    st = threading.Thread(None, storm_thread)
+    st.daemon = False
+    st.start()
 
 
 if __name__ == '__main__':
