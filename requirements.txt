@@ -1,0 +1,2 @@
+psutil==1.0.1
+pyalsaaudio==0.7
