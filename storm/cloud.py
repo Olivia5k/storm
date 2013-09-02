@@ -42,16 +42,18 @@ class EventHandler(inf.ProcessEvent):
     def load_descriptor(self, path):
         name = self.filename(path)
 
-        print('Loading:', name)
+        print('Loading descriptor:', name)
         self.descriptors[name] = Descriptor(path)
 
     def filename(self, path):
         return path.split('/')[-1]
 
     def handle(self, event):
+        # print('{0} on: {1}'.format(event.maskname, event.pathname))
         line = []
         for item in self.items:
             line.append(self.descriptors[item].read())
+
         print(' '.join(line))
 
     def process_IN_CREATE(self, event):
@@ -62,12 +64,12 @@ class EventHandler(inf.ProcessEvent):
         self.handle(event)
 
     process_IN_DELETE = handle
-    process_IN_MODIFY = handle
+    process_IN_CLOSE_WRITE = handle
 
 
 class Cloud():
     def start(self):
-        mask = inf.IN_DELETE | inf.IN_CREATE | inf.IN_MODIFY
+        mask = inf.IN_DELETE | inf.IN_CREATE | inf.IN_CLOSE_WRITE
         wm = inf.WatchManager()
         eh = EventHandler()
         eh.load_descriptors()
