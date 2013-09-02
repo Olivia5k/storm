@@ -10,7 +10,7 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': [
-            'storm = storm:main'
+            'storm = storm.storm:main'
         ]
     },
     classifiers=[
