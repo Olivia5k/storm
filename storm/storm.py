@@ -305,61 +305,63 @@ class StfuFormatter():
     pass
 
 
-def interval(sleep):
-    def real_decorator(function):
-        def wrapper(self, *args, **kwargs):
-            while True:
-                ret = function(self)
-
-                fn = function.__name__
-                self.write(fn, ret)
-
-                time.sleep(sleep)
-
-        wrapper.runner = True
-        return wrapper
-    return real_decorator
-
-
-def hlwm(hook):
-    def real_decorator(function):
-        def wrapper(self, *args, **kwargs):
-            process = sub.Popen(
-                ['herbstclient', '--idle'],
-                stdout=sub.PIPE
-            )
-            while True:
-                output = process.stdout.readline()
-                if not output:
-                    break
-
-                output = output.decode()
-                output = output.replace('\n', '')
-                if hook in output:
-                    hc_hook = []
-                    for part in output.split('\t'):
-                        if len(part) > 0:
-                            hc_hook.append(part)
-                    ret = function(self, hc_hook)
+class Hooker():
+    @staticmethod
+    def interval(sleep):
+        def real_decorator(function):
+            def wrapper(self, *args, **kwargs):
+                while True:
+                    ret = function(self)
 
                     fn = function.__name__
                     self.write(fn, ret)
 
-        wrapper.hook = hook
+                    time.sleep(sleep)
+
+            wrapper.runner = True
+            return wrapper
+        return real_decorator
+
+    @staticmethod
+    def hlwm(hook):
+        def real_decorator(function):
+            def wrapper(self, *args, **kwargs):
+                process = sub.Popen(
+                    ['herbstclient', '--idle'],
+                    stdout=sub.PIPE
+                )
+                while True:
+                    output = process.stdout.readline()
+                    if not output:
+                        break
+
+                    output = output.decode()
+                    output = output.replace('\n', '')
+                    if hook in output:
+                        hc_hook = []
+                        for part in output.split('\t'):
+                            if len(part) > 0:
+                                hc_hook.append(part)
+                        ret = function(self, hc_hook)
+
+                        fn = function.__name__
+                        self.write(fn, ret)
+
+            wrapper.hook = hook
+            wrapper.runner = True
+            return wrapper
+        return real_decorator
+
+    @staticmethod
+    def static(function):
+        def wrapper(self, *args, **kwargs):
+            ret = function(self)
+
+            fn = function.__name__
+            self.write(fn, ret)
+
         wrapper.runner = True
         return wrapper
-    return real_decorator
-
-
-def static(function):
-    def wrapper(self, *args, **kwargs):
-        ret = function(self)
-
-        fn = function.__name__
-        self.write(fn, ret)
-
-    wrapper.runner = True
-    return wrapper
 
 
 class Storm():
@@ -402,7 +404,7 @@ class Storm():
         with open(path, 'w') as fp:
             fp.write(str(data))
 
-    @hlwm("tag")
+    @Hooker.hlwm("tag")
     def tags(self, hook):
         output = sub.Popen(
             ['herbstclient', 'tag_status'],
@@ -410,11 +412,11 @@ class Storm():
         ).communicate()[0].decode()
         return output
 
-    @hlwm("focus")
+    @Hooker.hlwm("focus")
     def windowtitle(self, hook):
         return hook[2]
 
-    @interval(1)
+    @Hooker.interval(1)
     def date(self):
         now = datetime.datetime.now()
         return {
@@ -424,7 +426,7 @@ class Storm():
         }
 
     # TODO: Use inotify on interface data
-    @interval(20)
+    @Hooker.interval(20)
     def network(self):
         try:
             ip = socket.gethostbyname(socket.gethostname())
@@ -436,15 +438,15 @@ class Storm():
 
         return ip
 
-    @interval(7)
+    @Hooker.interval(7)
     def load(self):
         return os.getloadavg()
 
-    @interval(5)
+    @Hooker.interval(5)
     def processes(self):
         return len(psutil.get_pid_list())
 
-    @interval(5)
+    @Hooker.interval(5)
     def mem_swap(self):
         mem = psutil.virtual_memory()
         swap = psutil.swap_memory()
@@ -453,7 +455,7 @@ class Storm():
             "swap": swap.used
         }
 
-    @interval(100)
+    @Hooker.interval(100)
     def packages(self):
         fakedb = join("/dev", "shm", "fakepacdb")
         fakelock = join(fakedb, "db.lck")
@@ -488,24 +490,24 @@ class Storm():
             "new": new_pkgs
         }
 
-    @interval(1)
+    @Hooker.interval(1)
     def volume(self):
         return {
             "volume": alsaaudio.Mixer().getvolume()[0],
             "muted": alsaaudio.Mixer().getmute()[0]
         }
 
-    @static
+    @Hooker.static
     def hostname(self):
         return socket.gethostname()
 
-    @static
+    @Hooker.static
     def kernel(self):
         out = sub.Popen(['uname', '-r'], stdout=sub.PIPE).communicate()
         kernel = str(re.sub(r'\s', '', out[0].decode()))
         return kernel
 
-    @interval(10)
+    @Hooker.interval(10)
     def power(self):
         acpi = sub.Popen(
             ['acpi', '-ab'], stdout=sub.PIPE
