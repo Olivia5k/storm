@@ -96,7 +96,7 @@ class EventHandler(inf.ProcessEvent):
             stdout=sub.PIPE
         ).communicate()[0].decode()
 
-        spacer = "^pa(%s)" % str(self.panel_width - int(right_text_width) - 80)
+        spacer = "^pa(%s)" % str(self.panel_width - int(right_text_width) - 90)
 
         line = "%s%s%s" % (
             left_line,
