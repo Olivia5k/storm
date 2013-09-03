@@ -422,12 +422,13 @@ class Storm():
                 t.start()
 
     def write(self, fn, data, output=True):
+        if output:
+            print("Writing {0}".format(fn))
+            # print("Writing {0}: {1}".format(fn, data))
+
         if hasattr(self.formatter, fn):
             func = getattr(self.formatter, fn)
             data = func(data)
-
-        if output:
-            print("Writing {0}".format(fn))
 
         path = join(self.cwd, fn)
         with open(path, 'w') as fp:
@@ -552,7 +553,7 @@ class Storm():
         else:
             time_match = re.search("\d{2}:\d{2}:\d{2}", acpi[0])
             if time_match and len(time_match.group(0)) >= 5:
-                time_left = time_match.group(0)[:5],
+                time_left = time_match.group(0)[:5]
 
         return {
             "percent": percent,
@@ -560,9 +561,9 @@ class Storm():
             "time_left": time_left
         }
 
-    @Hooker.inotify('/home/thiderman/.mail', inf.IN_MODIFY)
+    @Hooker.inotify(join(os.getenv('HOME'), '.mail'), inf.IN_MODIFY)
     def mail(self):
-        mail = glob.glob('/home/thiderman/.mail/*/*/new/*')
+        mail = glob.glob(join(os.getenv('HOME'), '.mail', '*/*/new/*'))
         mail = filter(lambda m: '/archive/' not in m, mail)
         return len(list(mail))
 
@@ -583,7 +584,6 @@ def main():
                 'dzen2', '-dock', '-ta', 'l', '-sa', 'rc',
                 '-fn', font, '-h', '17'
             ],
-            # ['tee'],
             bufsize=0,
             stdin=p1.stdout,
             stderr=sub.PIPE,
