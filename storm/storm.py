@@ -444,7 +444,10 @@ class Storm():
 
     @Hooker.hlwm("focus")
     def windowtitle(self, hook):
-        return hook[2]
+        ret = ""
+        if len(hook) > 2:
+            ret = hook[2]
+        return ret
 
     @Hooker.interval(1)
     def date(self):
