@@ -84,8 +84,9 @@ class StormFormatter():
                 # Regular ol' tag
                 tag_design = self.colorize(" %s " % tag)
 
-            tags += "^ca(1,herbstclient focus_monitor 0 && \
-                    herbstclient use %s)%s^ca()" % (
+            ctl = "^ca(1,herbstclient focus_monitor 0 && "
+            ctl += "herbstclient use %s)%s^ca()"
+            tags += ctl % (
                 tag,
                 tag_design
             )
