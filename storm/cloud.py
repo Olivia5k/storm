@@ -1,7 +1,6 @@
 import os
 import sys
 import re
-import subprocess as sub
 import pyinotify as inf
 import asyncore
 import logbook
@@ -32,6 +31,7 @@ class EventHandler(inf.ProcessEvent):
     # Setup some static vars that should really be in a conf file.
     # TODO: Conf file plz.
     font = "-*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*"
+    font_width = 6
     separator_color = "#a8c411"
 
     panel_width = util.get_screen_size()
@@ -91,15 +91,7 @@ class EventHandler(inf.ProcessEvent):
         right_line = separator.join(right_line)
 
         right_text_only = re.sub('\^[^(]*([^)]*).', '', right_line)
-
-        right_text_width = sub.Popen(
-            [
-                "textwidth",
-                self.font,
-                right_text_only
-            ],
-            stdout=sub.PIPE
-        ).communicate()[0].decode()
+        right_text_width = len(right_text_only) * 6
 
         spacer = "^pa(%s)" % str(self.panel_width - int(right_text_width) - 90)
 
