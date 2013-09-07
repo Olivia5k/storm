@@ -1,48 +1,20 @@
-import os
 import sys
-import re
-import subprocess as sub
 import pyinotify as inf
 import asyncore
 import logbook
 
-from os.path import join
 from storm import util
-
-
-# TODO: Generalize with storm.py
-xdg = os.getenv(
-    'XDG_CACHE_HOME',
-    join(os.getenv('HOME'), '.cache')
-)
-
-ROOT = join(xdg, 'storm')
-
-
-class Descriptor():
-    def __init__(self, path):
-        self.fd = open(path)
-
-    def read(self):
-        self.fd.seek(0)
-        return self.fd.read()
+from storm import conf
+from storm import bolt
 
 
 class EventHandler(inf.ProcessEvent):
     # Setup some static vars that should really be in a conf file.
     # TODO: Conf file plz.
-    font = "-*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*"
-    separator_color = "#a8c411"
+    font = conf.CONFIG['font']['name']
+    separator_color = conf.CONFIG['colors']['sep']
 
-    panel_width = util.get_screen_size()
-
-    left_items = [
-        'tags', 'windowtitle',
-    ]
-    right_items = [
-        'kernel', 'packages', 'processes', 'mail', 'mem_swap', 'load',
-        'power', 'volume', 'network', 'date', 'hostname',
-    ]
+    width = util.get_screen_size()
 
     descriptors = {}
 
@@ -52,62 +24,24 @@ class EventHandler(inf.ProcessEvent):
         self.log = logbook.Logger(name)
         self.log.debug('Loaded logger for {0}', name)
 
-    def load_descriptors(self):
-        """
-        Load file descriptors of files into dictionary.
+    def setup(self):
+        self.left = bolt.BoltLine()
+        self.left.register_bolts(*conf.CONFIG['items']['left'])
 
-        Optimized for not needing opening and closing of file descriptors for
-        every update.
-
-        """
-
-        for path in os.listdir(ROOT):
-            self.load_descriptor(os.path.join(ROOT, path))
-
-    def load_descriptor(self, path):
-        name = self.filename(path)
-
-        self.log.info('Loading descriptor: {0}', name)
-        self.descriptors[name] = Descriptor(path)
+        self.right = bolt.BoltLine()
+        self.right.register_bolts(*conf.CONFIG['items']['right'])
 
     def filename(self, path):
         return path.split('/')[-1]
 
     def handle(self, event):
-        # print('{0} on: {1}'.format(event.maskname, event.pathname))
+        if event and 'debug' in conf.CONFIG:
+            self.log.debug('{0} on: {1}', event.maskname, event.pathname)
 
-        separator = " ^bg()^fg(%s)|^fg()^bg() " % self.separator_color
+        spacer = "^pa(%d)" % (self.width - self.right.width() - 90)
+        line = "%s%s%s" % (self.left.compile(), spacer, self.right.compile())
 
-        left_line = []
-        for item in self.left_items:
-            if item in self.descriptors:
-                left_line.append(self.descriptors[item].read())
-        left_line = separator.join(left_line)
-
-        right_line = []
-        for item in self.right_items:
-            if item in self.descriptors:
-                right_line.append(self.descriptors[item].read())
-        right_line = separator.join(right_line)
-
-        right_text_only = re.sub('\^[^(]*([^)]*).', '', right_line)
-
-        right_text_width = sub.Popen(
-            [
-                "textwidth",
-                self.font,
-                right_text_only
-            ],
-            stdout=sub.PIPE
-        ).communicate()[0].decode()
-
-        spacer = "^pa(%s)" % str(self.panel_width - int(right_text_width) - 90)
-
-        line = "%s%s%s" % (
-            left_line,
-            spacer,
-            right_line
-        )
+        assert '\n' not in line, 'Line break in output'
 
         sys.stdout.write('\n' + line)
         sys.stdout.flush()
@@ -129,9 +63,9 @@ class Cloud():
         mask = inf.IN_DELETE | inf.IN_CREATE | inf.IN_MODIFY
         wm = inf.WatchManager()
         eh = EventHandler()
-        eh.load_descriptors()
+        eh.setup()
         inf.AsyncNotifier(wm, eh)
-        wm.add_watch(ROOT, mask, rec=True)
+        wm.add_watch(conf.ROOT, mask, rec=True)
 
         # Run the initial grab of data
         eh.handle(None)

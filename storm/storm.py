@@ -18,6 +18,7 @@ import alsaaudio
 import psutil
 import logbook
 
+from storm import conf
 from storm import cloud
 from storm import util
 
@@ -27,19 +28,7 @@ logger = logbook.Logger('root')
 
 class StormFormatter(util.LoggedClass):
     def __init__(self):
-        self.colors = {
-            "warn": "#e08e1b",
-            "crit": "#ee0d0d",
-            "dead": "#8f0d0d",
-            "fg_1": "#9d9d9d",
-            "fg_2": "#666666",
-            "fg_3": "#a8c410",
-            "bg_1": "#111117",
-            "bg_2": "#66770a",
-            "bg_3": "#292929",
-            "icon": "#a8c410",
-            "sep": "#a8c411",
-        }
+        self.colors = conf.CONFIG['colors']
 
         # XXX: Will only work if ran from bin/storm. Iz problem?
         self.icons = os.path.abspath(
@@ -535,9 +524,11 @@ class Storm(util.LoggedClass):
 
     @Hooker.interval(1)
     def volume(self):
+        mixer = alsaaudio.Mixer(conf.CONFIG['volume']['mixer'])
+        master = alsaaudio.Mixer()
         return {
-            "volume": alsaaudio.Mixer().getvolume()[0],
-            "muted": alsaaudio.Mixer().getmute()[0]
+            "volume": mixer.getvolume()[0],
+            "muted": master.getmute()[0]
         }
 
     @Hooker.static
@@ -574,9 +565,9 @@ class Storm(util.LoggedClass):
             "time_left": time_left
         }
 
-    @Hooker.inotify(join(os.getenv('HOME'), '.mail'), inf.IN_MODIFY)
+    @Hooker.inotify(conf.CONFIG['mail']['mailroot'], inf.IN_MODIFY)
     def mail(self):
-        mail = glob.glob(join(os.getenv('HOME'), '.mail', '*/*/new/*'))
+        mail = glob.glob(join(conf.CONFIG['mail']['mailroot'], '*/*/new/*'))
         mail = filter(lambda m: '/archive/' not in m, mail)
         return len(list(mail))
 
