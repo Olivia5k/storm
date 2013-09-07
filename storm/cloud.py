@@ -8,6 +8,7 @@ import logbook
 
 from os.path import join
 from storm import util
+from storm import conf
 
 
 # TODO: Generalize with storm.py
@@ -31,18 +32,10 @@ class Descriptor():
 class EventHandler(inf.ProcessEvent):
     # Setup some static vars that should really be in a conf file.
     # TODO: Conf file plz.
-    font = "-*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*"
-    separator_color = "#a8c411"
+    font = conf.CONFIG['font']['name']
+    separator_color = conf.CONFIG['colors']['sep']
 
     panel_width = util.get_screen_size()
-
-    left_items = [
-        'tags', 'windowtitle',
-    ]
-    right_items = [
-        'kernel', 'packages', 'processes', 'mail', 'mem_swap', 'load',
-        'power', 'volume', 'network', 'date', 'hostname',
-    ]
 
     descriptors = {}
 
@@ -74,18 +67,19 @@ class EventHandler(inf.ProcessEvent):
         return path.split('/')[-1]
 
     def handle(self, event):
-        # print('{0} on: {1}'.format(event.maskname, event.pathname))
+        if event and 'debug' in conf.CONFIG:
+            self.log.debug('{0} on: {1}', event.maskname, event.pathname)
 
         separator = " ^bg()^fg(%s)|^fg()^bg() " % self.separator_color
 
         left_line = []
-        for item in self.left_items:
+        for item in conf.CONFIG['items']['left']:
             if item in self.descriptors:
                 left_line.append(self.descriptors[item].read())
         left_line = separator.join(left_line)
 
         right_line = []
-        for item in self.right_items:
+        for item in conf.CONFIG['items']['right']:
             if item in self.descriptors:
                 right_line.append(self.descriptors[item].read())
         right_line = separator.join(right_line)
@@ -108,6 +102,8 @@ class EventHandler(inf.ProcessEvent):
             spacer,
             right_line
         )
+
+        assert '\n' not in line, 'Line break in output'
 
         sys.stdout.write('\n' + line)
         sys.stdout.flush()

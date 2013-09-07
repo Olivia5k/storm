@@ -1,0 +1,34 @@
+font:
+  name: -*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*
+  width: 6
+
+colors:
+  warn: "#e08e1b"
+  crit: "#ee0d0d"
+  dead: "#8f0d0d"
+  fg_1: "#9d9d9d"
+  fg_2: "#666666"
+  fg_3: "#a8c410"
+  bg_1: "#111117"
+  bg_2: "#66770a"
+  bg_3: "#292929"
+  icon: "#a8c410"
+  sep: "#a8c411"
+
+items:
+  left:
+    - tags
+    - windowtitle
+
+  right:
+    - kernel
+    - hostname
+    - packages
+    - processes
+    - mail
+    - mem_swap
+    - load
+    - power
+    - volume
+    - network
+    - date
