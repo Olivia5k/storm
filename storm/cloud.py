@@ -4,6 +4,7 @@ import re
 import subprocess as sub
 import pyinotify as inf
 import asyncore
+import logbook
 
 from os.path import join
 from storm import util
@@ -45,6 +46,12 @@ class EventHandler(inf.ProcessEvent):
 
     descriptors = {}
 
+    def __init__(self, *args, **kwargs):
+        # TODO: get LoggedClass to roll with multiple inheritance.
+        name = self.__class__.__name__
+        self.log = logbook.Logger(name)
+        self.log.debug('Loaded logger for {0}', name)
+
     def load_descriptors(self):
         """
         Load file descriptors of files into dictionary.
@@ -60,7 +67,7 @@ class EventHandler(inf.ProcessEvent):
     def load_descriptor(self, path):
         name = self.filename(path)
 
-        print('Loading descriptor:', name)
+        self.log.info('Loading descriptor: {0}', name)
         self.descriptors[name] = Descriptor(path)
 
     def filename(self, path):

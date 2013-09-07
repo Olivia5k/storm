@@ -16,11 +16,16 @@ from os.path import join
 
 import alsaaudio
 import psutil
+import logbook
 
 from storm import cloud
+from storm import util
 
 
-class StormFormatter():
+logger = logbook.Logger('root')
+
+
+class StormFormatter(util.LoggedClass):
     def __init__(self):
         self.colors = {
             "warn": "#e08e1b",
@@ -40,6 +45,8 @@ class StormFormatter():
         self.icons = os.path.abspath(
             join(sys.argv[0], '..', '..', 'storm', 'icons')
         )
+
+        super().__init__()
 
     def colorize(self, text, fg=None, bg=None):
         fg = self.colors[fg] if fg else self.colors["fg_1"]
@@ -394,16 +401,18 @@ class Hooker():
         return real_decorator
 
 
-class Storm():
+class Storm(util.LoggedClass):
     def __init__(self, formatter):
         self.formatter = formatter
         self.monitor = "0"
+        super().__init__()
 
     def setup(self):
         xdg = os.getenv(
             'XDG_CACHE_HOME',
             join(os.getenv('HOME'), '.cache')
         )
+        self.log.debug('Got xdg root: {0}', xdg)
 
         p = join(xdg, 'storm')
         os.makedirs(p, exist_ok=True)
@@ -413,7 +422,7 @@ class Storm():
         # self.pac_count = "/dev/shm/fakepacdb/counts"
 
     def run(self):
-        # print('Starting')
+        self.log.debug('Starting')
         # TODO: Unhack this from dir() pls :(
         for name in dir(self):
             value = getattr(self, name)
@@ -424,8 +433,7 @@ class Storm():
 
     def write(self, fn, data, output=True):
         if output:
-            print("Writing {0}".format(fn))
-            # print("Writing {0}: {1}".format(fn, data))
+            self.log.info("Writing {0}", fn)
 
         if hasattr(self.formatter, fn):
             func = getattr(self.formatter, fn)
@@ -505,6 +513,7 @@ class Storm():
 
         sub.Popen(
             ['fakeroot', 'pacman', '--dbpath', fakedb, '-Sy'],
+            stdout=sub.DEVNULL
         ).communicate()
 
         pkgs = sub.Popen(
@@ -575,7 +584,7 @@ class Storm():
 def main():
     if len(sys.argv) > 1:
         # Argument given, start the cloudz!
-        print('Summoning clouds...')
+        logger.info('Summoning clouds...')
         cloud.main()
         sys.exit(0)
 
@@ -596,11 +605,11 @@ def main():
         # p1.stdout.close()
 
         # Will run 5eva
-        print('Starting dem cloud')
+        logger.info('Starting dem cloud')
         p2.wait()
 
     def storm_thread():
-        print('Conjuring the storm...')
+        logger.info('Conjuring the storm...')
         formatter = StormFormatter()
         # formatter = StfuFormatter()
         storm = Storm(formatter)

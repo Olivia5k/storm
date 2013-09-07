@@ -1,5 +1,18 @@
 import re
 import subprocess as sub
+import logbook
+
+
+class LoggedClass():
+    """
+    Abstract class that provdies a configured self.log
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        name = self.__class__.__name__
+        self.log = logbook.Logger(name)
+        self.log.debug('Loaded logger for {0}', name)
 
 
 def get_screen_size():
