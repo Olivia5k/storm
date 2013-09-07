@@ -25,6 +25,7 @@ def get_screen_size():
 
     """
 
-    out = sub.Popen('xrandr', stdout=sub.PIPE).communicate()[0].decode()
+    args = ['xrandr', '--display', ':0']
+    out = sub.Popen(args, stdout=sub.PIPE).communicate()[0].decode()
     size = re.search(r'\bconnected\b (\d+)x(\d+)', out)
     return int(size.group(1))
