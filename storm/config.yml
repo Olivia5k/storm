@@ -15,6 +15,13 @@ colors:
   icon: "#a8c410"
   sep: "#a8c411"
 
+mail:
+  mailroot: ~/.mail
+  icon: mail
+
+volume:
+  mixer: PCM
+
 items:
   left:
     - runner: tags

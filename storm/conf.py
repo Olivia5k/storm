@@ -1,5 +1,5 @@
 import os
-from os.path import join
+from os.path import join, expanduser
 
 import yaml
 from logbook import Logger
@@ -30,11 +30,16 @@ def get_local():
 
 
 def load():
-    global_yaml = get_global()
+    g_yaml = get_global()
     local_yaml = get_local()
 
     # Merge the two by overwriting the data from local
-    global_yaml.update(local_yaml)
-    return global_yaml
+    g_yaml.update(local_yaml)
+
+    # These need to be paths rather than tildes
+    # TODO: Un-uglify
+    g_yaml['mail']['mailroot'] = expanduser(g_yaml['mail']['mailroot'])
+
+    return g_yaml
 
 CONFIG = load()

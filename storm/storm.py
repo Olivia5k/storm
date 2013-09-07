@@ -524,9 +524,11 @@ class Storm(util.LoggedClass):
 
     @Hooker.interval(1)
     def volume(self):
+        mixer = alsaaudio.Mixer(conf.CONFIG['volume']['mixer'])
+        master = alsaaudio.Mixer()
         return {
-            "volume": alsaaudio.Mixer().getvolume()[0],
-            "muted": alsaaudio.Mixer().getmute()[0]
+            "volume": mixer.getvolume()[0],
+            "muted": master.getmute()[0]
         }
 
     @Hooker.static
@@ -563,9 +565,9 @@ class Storm(util.LoggedClass):
             "time_left": time_left
         }
 
-    @Hooker.inotify(join(os.getenv('HOME'), '.mail'), inf.IN_MODIFY)
+    @Hooker.inotify(conf.CONFIG['mail']['mailroot'], inf.IN_MODIFY)
     def mail(self):
-        mail = glob.glob(join(os.getenv('HOME'), '.mail', '*/*/new/*'))
+        mail = glob.glob(join(conf.CONFIG['mail']['mailroot'], '*/*/new/*'))
         mail = filter(lambda m: '/archive/' not in m, mail)
         return len(list(mail))
 
