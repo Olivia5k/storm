@@ -147,20 +147,20 @@ class StormFormatter(util.LoggedClass):
         """
         Example data to be a list:
 
-        data = [0.22, 0,24, 0.23]
+        data = [0.22, 0.24, 0.23]
 
         """
         load_avgs = ""
         elevation = False
         for avg in data:
             if avg < 1:
-                load_avgs += "%s " % self.colorize(avg)
+                load_avgs += "%s " % self.colorize("%.2f" % avg)
             elif avg < 3:
-                load_avgs += "%s " % self.colorize(avg, fg="warn")
+                load_avgs += "%s " % self.colorize("%.2f" % avg, fg="warn")
                 if elevation != "crit":
                     elevation = "warn"
             else:
-                load_avgs += "%s " % self.colorize(avg, fg="crit")
+                load_avgs += "%s " % self.colorize("%.2f" % avg, fg="crit")
                 elevation = "crit"
 
             icon = self.icon("scorpio")
