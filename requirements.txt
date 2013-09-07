@@ -1,3 +1,4 @@
 psutil==1.0.1
 pyalsaaudio==0.7
 pyinotify==0.9.4
+logbook==0.5.0
