@@ -9,14 +9,10 @@ from storm import bolt
 
 
 class EventHandler(inf.ProcessEvent):
-    # Setup some static vars that should really be in a conf file.
-    # TODO: Conf file plz.
     font = conf.CONFIG['font']['name']
     separator_color = conf.CONFIG['colors']['sep']
 
     width = util.get_screen_size()
-
-    descriptors = {}
 
     def __init__(self, *args, **kwargs):
         # TODO: get LoggedClass to roll with multiple inheritance.
@@ -31,9 +27,6 @@ class EventHandler(inf.ProcessEvent):
         self.right = bolt.BoltLine()
         self.right.register_bolts(*conf.CONFIG['items']['right'])
 
-    def filename(self, path):
-        return path.split('/')[-1]
-
     def handle(self, event):
         if event and 'debug' in conf.CONFIG:
             self.log.debug('{0} on: {1}', event.maskname, event.pathname)
@@ -45,13 +38,6 @@ class EventHandler(inf.ProcessEvent):
 
         sys.stdout.write('\n' + line)
         sys.stdout.flush()
-
-    def process_IN_CREATE(self, event):
-        name = self.filename(event.pathname)
-        if name not in self.descriptors:
-            self.load_descriptor(event.pathname)
-
-        self.handle(event)
 
     process_IN_DELETE = handle
     process_IN_CLOSE_WRITE = handle
