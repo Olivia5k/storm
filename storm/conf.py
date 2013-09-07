@@ -6,6 +6,9 @@ from logbook import Logger
 
 logger = Logger('conf')
 
+xdg = os.getenv('XDG_CACHE_HOME', join(os.getenv('HOME'), '.cache'))
+ROOT = join(xdg, 'storm')
+
 
 def get_global():
     logger.info('Loading global config')

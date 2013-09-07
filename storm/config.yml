@@ -17,18 +17,18 @@ colors:
 
 items:
   left:
-    - tags
-    - windowtitle
+    - runner: tags
+    - runner: windowtitle
 
   right:
-    - kernel
-    - hostname
-    - packages
-    - processes
-    - mail
-    - mem_swap
-    - load
-    - power
-    - volume
-    - network
-    - date
+    - runner: kernel
+    - runner: hostname
+    - runner: packages
+    - runner: processes
+    - runner: mail
+    - runner: mem_swap
+    - runner: load
+    - runner: power
+    - runner: volume
+    - runner: network
+    - runner: date
