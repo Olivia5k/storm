@@ -489,7 +489,7 @@ class Storm():
             "swap": swap.used
         }
 
-    @Hooker.interval(100)
+    @Hooker.interval(600)
     def packages(self):
         fakedb = join("/dev", "shm", "fakepacdb")
         fakelock = join(fakedb, "db.lck")
