@@ -6,6 +6,7 @@ import pyinotify as inf
 import asyncore
 
 from os.path import join
+from storm import util
 
 
 # TODO: Generalize with storm.py
@@ -32,10 +33,7 @@ class EventHandler(inf.ProcessEvent):
     font = "-*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*"
     separator_color = "#a8c411"
 
-    # Figure out the panel width
-    p = os.popen("xrandr | grep '*' | awk '{print $1}'")
-    p_output = p.readline()
-    panel_width = int(re.sub("x.*", "", p_output))
+    panel_width = util.get_screen_size()
 
     left_items = [
         'tags', 'windowtitle',
