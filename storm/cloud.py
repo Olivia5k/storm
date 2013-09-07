@@ -91,7 +91,7 @@ class EventHandler(inf.ProcessEvent):
         right_line = separator.join(right_line)
 
         right_text_only = re.sub('\^[^(]*([^)]*).', '', right_line)
-        right_text_width = len(right_text_only) * 6
+        right_text_width = len(right_text_only) * self.font_width
 
         spacer = "^pa(%s)" % str(self.panel_width - int(right_text_width) - 90)
 
