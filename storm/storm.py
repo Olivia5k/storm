@@ -443,6 +443,7 @@ class Storm(util.LoggedClass):
         with open(path, 'w') as fp:
             fp.write(str(data))
 
+    @hooker.hlwm("tag_flags")
     @hooker.hlwm("tag_changed")
     def tags(self, hook):
         output = sub.Popen(
