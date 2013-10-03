@@ -13,6 +13,7 @@ import subprocess as sub
 import pyinotify as inf
 
 from os.path import join
+from collections import defaultdict
 
 import alsaaudio
 import psutil
@@ -309,8 +310,10 @@ class StfuFormatter():
 
 
 class Hooker():
-    @staticmethod
-    def interval(sleep):
+    def __init__(self):
+        self.hookers = defaultdict(set)
+
+    def interval(self, sleep):
         def real_decorator(function):
             def wrapper(self, *args, **kwargs):
                 while True:
@@ -325,10 +328,11 @@ class Hooker():
             return wrapper
         return real_decorator
 
-    @staticmethod
-    def hlwm(hook):
+    def hlwm(self, hook):
         def real_decorator(function):
-            def wrapper(self, *args, **kwargs):
+            fn = function.__name__
+
+            def wrapper(storm, *args, **kwargs):
                 process = sub.Popen(
                     ['herbstclient', '--idle'],
                     stdout=sub.PIPE
@@ -338,25 +342,31 @@ class Hooker():
                     if not output:
                         break
 
-                    output = output.decode()
-                    output = output.replace('\n', '')
-                    if hook in output:
+                    output = output.decode().replace('\n', '')
+                    parts = output.split('\t')
+
+                    if parts[0] in self.hookers[fn]:
                         hc_hook = []
-                        for part in output.split('\t'):
+                        for part in parts:
                             if len(part) > 0:
                                 hc_hook.append(part)
-                        ret = function(self, hc_hook)
 
-                        fn = function.__name__
-                        self.write(fn, ret)
+                        ret = function(storm, hc_hook)
+                        storm.write(fn, ret)
 
-            wrapper.hook = hook
+            # Store the hook name on the hooker object so that we can re-use
+            # the same decorator for multiple hooks
+            self.hookers[fn].add(hook)
+
+            # Also, keep the original name for the decorator function so that
+            # the line above does not get the function 'wrapper' for the next
+            # run.
+            wrapper.__name__ = fn
             wrapper.runner = True
             return wrapper
         return real_decorator
 
-    @staticmethod
-    def static(function):
+    def static(self, function):
         def wrapper(self, *args, **kwargs):
             ret = function(self)
 
@@ -366,8 +376,7 @@ class Hooker():
         wrapper.runner = True
         return wrapper
 
-    @staticmethod
-    def inotify(path, mask):
+    def inotify(self, path, mask):
         def real_decorator(function):
             class EventHandler(inf.ProcessEvent):
                 def __init__(self, storm, *args, **kwargs):
@@ -391,6 +400,8 @@ class Hooker():
 
 
 class Storm(util.LoggedClass):
+    hooker = Hooker()
+
     def __init__(self, formatter):
         self.formatter = formatter
         self.monitor = "0"
@@ -432,7 +443,8 @@ class Storm(util.LoggedClass):
         with open(path, 'w') as fp:
             fp.write(str(data))
 
-    @Hooker.hlwm("tag")
+    @hooker.hlwm("tag_flags")
+    @hooker.hlwm("tag_changed")
     def tags(self, hook):
         output = sub.Popen(
             ['herbstclient', 'tag_status'],
@@ -440,14 +452,15 @@ class Storm(util.LoggedClass):
         ).communicate()[0].decode()
         return output
 
-    @Hooker.hlwm("focus")
+    @hooker.hlwm("window_title_changed")
+    @hooker.hlwm("focus_changed")
     def windowtitle(self, hook):
         ret = ""
         if len(hook) > 2:
             ret = hook[2]
         return ret
 
-    @Hooker.interval(1)
+    @hooker.interval(1)
     def date(self):
         now = datetime.datetime.now()
         return {
@@ -457,7 +470,7 @@ class Storm(util.LoggedClass):
         }
 
     # TODO: Use inotify on interface data
-    @Hooker.interval(20)
+    @hooker.interval(20)
     def network(self):
         try:
             ip = socket.gethostbyname(socket.gethostname())
@@ -469,15 +482,15 @@ class Storm(util.LoggedClass):
 
         return ip
 
-    @Hooker.interval(7)
+    @hooker.interval(7)
     def load(self):
         return os.getloadavg()
 
-    @Hooker.interval(5)
+    @hooker.interval(5)
     def processes(self):
         return len(psutil.get_pid_list())
 
-    @Hooker.interval(5)
+    @hooker.interval(5)
     def mem_swap(self):
         mem = psutil.virtual_memory()
         swap = psutil.swap_memory()
@@ -486,7 +499,7 @@ class Storm(util.LoggedClass):
             "swap": swap.used
         }
 
-    @Hooker.interval(600)
+    @hooker.interval(600)
     def packages(self):
         fakedb = join("/dev", "shm", "fakepacdb")
         fakelock = join(fakedb, "db.lck")
@@ -522,8 +535,6 @@ class Storm(util.LoggedClass):
             "new": new_pkgs
         }
 
-    @Hooker.interval(1)
-    def volume(self):
         mixer = alsaaudio.Mixer(conf.CONFIG['volume']['mixer'])
         master = alsaaudio.Mixer()
         return {
@@ -531,17 +542,17 @@ class Storm(util.LoggedClass):
             "muted": master.getmute()[0]
         }
 
-    @Hooker.static
+    @hooker.static
     def hostname(self):
         return socket.gethostname()
 
-    @Hooker.static
+    @hooker.static
     def kernel(self):
         out = sub.Popen(['uname', '-r'], stdout=sub.PIPE).communicate()
         kernel = str(re.sub(r'\s', '', out[0].decode()))
         return kernel
 
-    @Hooker.interval(10)
+    @hooker.interval(10)
     def power(self):
         acpi = sub.Popen(
             ['acpi', '-ab'], stdout=sub.PIPE
@@ -565,7 +576,7 @@ class Storm(util.LoggedClass):
             "time_left": time_left
         }
 
-    @Hooker.inotify(conf.CONFIG['mail']['mailroot'], inf.IN_MODIFY)
+    @hooker.inotify(conf.CONFIG['mail']['mailroot'], inf.IN_MODIFY)
     def mail(self):
         mail = glob.glob(join(conf.CONFIG['mail']['mailroot'], '*/*/new/*'))
         mail = filter(lambda m: '/archive/' not in m, mail)
