@@ -270,34 +270,38 @@ class StormFormatter(util.LoggedClass):
 
         """
         percent = data["percent"]
-        if percent < 10:
-            icon = self.icon("bat_empty_01", fg="crit")
-            percent = self.colorize(str(percent) + "%", fg="crit")
-        elif percent < 20:
-            icon = self.icon("bat_empty_01", fg="warn")
-            percent = self.colorize(str(percent) + "%", fg="warn")
-        elif percent < 30:
-            icon = self.icon("bat_low_01", fg="warn")
-            percent = self.colorize(str(percent) + "%")
-        elif percent < 50:
-            icon = self.icon("bat_low_01")
-            percent = self.colorize(str(percent) + "%")
-        elif percent < 80:
-            icon = self.icon("bat_full_01")
-            percent = self.colorize(str(percent) + "%")
-        else:
-            icon = self.icon("bat_full_01")
-            percent = self.colorize(str(percent) + "%", fg="fg_3")
+        fg = None
+        icon_fg = None
 
-        ret = "%s %s" % (icon, percent)
+        if percent < 10:
+            icon = "bat_empty_01",
+            icon_fg = "crit"
+            fg = "crit"
+        elif percent < 20:
+            icon = "bat_empty_01",
+            icon_fg = "warn"
+            fg = "warn"
+        elif percent < 30:
+            icon = "bat_low_01",
+            icon_fg = "warn"
+        elif percent < 50:
+            icon = "bat_low_01"
+        elif percent < 80:
+            icon = "bat_full_01"
+        else:
+            icon = "bat_full_01"
+            fg = "fg_3"
 
         if data["ac_connected"]:
-            ret = "%s %s" % (
-                self.icon("ac_01"),
-                ret
-            )
-        elif data["time_left"]:
-            ret += " (%s)" % self.colorize(data["time_left"], "fg_2")
+            icon = 'ac_01'
+
+        ret = "{0} {1}".format(
+            self.icon(icon, fg=icon_fg),
+            self.colorize(str(percent) + "%", fg=fg)
+        )
+
+        if data["time_left"]:
+            ret += " ({0})".format(self.colorize(data["time_left"], "fg_2"))
 
         return ret
 
@@ -554,26 +558,23 @@ class Storm(util.LoggedClass):
 
     @hooker.interval(10)
     def power(self):
-        acpi = sub.Popen(
-            ['acpi', '-ab'], stdout=sub.PIPE
-        ).communicate()[0].decode().split("\n")
+        acpi = sub.Popen(['acpi', '-ab'], stdout=sub.PIPE)
+        acpi = acpi.communicate()[0].decode().strip().split("\n")
 
-        percent_match = re.search("\d{1,3}%", acpi[0])
-        percent = int(percent_match.group(0)[:-1])
+        batteries = []
+        for acpi_line in filter(lambda x: x.startswith('Battery'), acpi):
+            bat = util.AcpiBattery(acpi_line)
+            bat.parse()
+            batteries.append(bat)
 
-        ac_connected = False
-        time_left = ""
-        if "on-line" in acpi[1]:
-            ac_connected = True
-        else:
-            time_match = re.search("\d{2}:\d{2}:\d{2}", acpi[0])
-            if time_match and len(time_match.group(0)) >= 5:
-                time_left = time_match.group(0)[:5]
+        percents = [b.percent for b in batteries]
+        percent = sum(percents) / len(percents)
+        total = sum(b.time.seconds for b in batteries)
 
         return {
             "percent": percent,
-            "ac_connected": ac_connected,
-            "time_left": time_left
+            "ac_connected": "on-line" in acpi[-1],
+            "time_left": util.time_left(total)
         }
 
     @hooker.inotify(conf.CONFIG['mail']['mailroot'], inf.IN_MODIFY)
