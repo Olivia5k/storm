@@ -6,9 +6,11 @@ import sys
 import time
 import glob
 import socket
-import threading
+import signal
 import datetime
 import asyncore
+import argparse
+import threading
 import subprocess as sub
 import pyinotify as inf
 
@@ -25,6 +27,7 @@ from storm import util
 
 
 logger = logbook.Logger('root')
+STOPPER = threading.Event()
 
 
 class StormFormatter(util.LoggedClass):
@@ -584,48 +587,170 @@ class Storm(util.LoggedClass):
         return len(list(mail))
 
 
+class Conjurer(util.LoggedClass):
+    def __init__(self):
+        self.torn = False
+        super(Conjurer, self).__init__()
+
+    def setup(self):
+        self.setup_signals()
+        self.setup_pidfile()
+
+    def setup_signals(self):
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+
+    def setup_pidfile(self):
+        pid = str(os.getpid())
+        self.log.debug('Pid: {0}', pid)
+        with open(conf.PIDFILE, 'w') as pidfile:
+            pidfile.write(pid)
+
+    def signal_handler(self, signum, frame):
+        names = {2: 'SIGINT', 15: 'SIGTERM'}
+        self.log.warning('Recieved {0}', names[signum])
+        self.teardown()
+
+    def teardown(self):
+        if self.torn:
+            return
+
+        self.torn = True
+        self.log.info('Tearing down conjurer')
+        self.teardown_pidfile()
+
+        self.log.info('Tearing down cloud thread')
+        self.stop_cloud()
+
+        self.log.info('Tearing down storm thread')
+        STOPPER.set()
+
+    def teardown_pidfile(self):
+        self.log.debug('Removing pidfile')
+        if os.path.isfile(conf.PIDFILE):
+            os.remove(conf.PIDFILE)
+        else:
+            self.log.info('Strange, no pidfile found.')
+
+    def stop_cloud(self):
+        # This is basically a Python "killall dzen2".
+        for p in filter(lambda p: p.name == "dzen2", psutil.process_iter()):
+            self.log.debug('Killing {p.pid}: {p.name}', p=p)
+            os.kill(p.pid, 2)
+
+    def run(self):
+        if len(sys.argv) > 1 and sys.argv[1] == 'cloud':
+            # Argument given, start the cloudz!
+            logger.info('Summoning clouds...')
+            cloud.main()
+            sys.exit(0)
+
+        def cloud_thread():
+            font = "-*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*"
+
+            p1 = sub.Popen([sys.argv[0], 'cloud'], stdout=sub.PIPE, bufsize=0)
+            p2 = sub.Popen(
+                [
+                    'dzen2', '-dock', '-ta', 'l', '-sa', 'rc',
+                    '-fn', font, '-h', '17'
+                ],
+                bufsize=0,
+                stdin=p1.stdout,
+                stderr=sub.PIPE,
+                stdout=sub.PIPE,
+            )
+
+            logger.info('Starting dem cloud')
+            p2.wait()
+            logger.info('The sky clears up and the clouds are gone')
+
+        def storm_thread(showstopper):
+            logger.info('Conjuring the storm...')
+            formatter = StormFormatter()
+            # formatter = StfuFormatter()
+            storm = Storm(formatter)
+            storm.setup()
+            storm.run()
+
+            self.log.info('Waiting for showstopper')
+            showstopper.wait()
+            self.log.info('Showstopper ran')
+
+            return True
+
+        ct = threading.Thread(None, cloud_thread)
+        ct.daemon = False
+        ct.start()
+
+        st = threading.Thread(None, storm_thread, args=(STOPPER,))
+        st.daemon = False
+        st.start()
+
+        self.log.info('Threads started')
+
+
+def setup_argparser():
+    parser = argparse.ArgumentParser('storm')
+    subparsers = parser.add_subparsers(help="Core commands", dest="command")
+    storm = subparsers.add_parser(
+        'storm',
+        help="Start or stop the storm"
+    )
+
+    sub = storm.add_subparsers(
+        help='Storm commands',
+        dest="storm_command"
+    )
+    sub.add_parser('start', help='Start (default)')
+    sub.add_parser('stop', help='Stop')
+
+    cloud = subparsers.add_parser(
+        'cloud',
+        help="Start or stop the cloud"
+    )
+
+    sub = cloud.add_subparsers(
+        help='Cloud commands',
+        dest="cloud_command"
+    )
+    sub.add_parser('start', help='Start (default)')
+    sub.add_parser('stop', help='Stop')
+
+    subparsers.add_parser(
+        'stop',
+        help="Stop the storm completely"
+    )
+
+    return parser
+
+
 def main():
-    if len(sys.argv) > 1:
-        # Argument given, start the cloudz!
-        logger.info('Summoning clouds...')
-        cloud.main()
-        sys.exit(0)
+    parser = setup_argparser()
+    ns = parser.parse_args()
 
-    def cloud_thread():
-        font = "-*-montecarlo-medium-*-*-*-11-*-*-*-*-*-*-*"
+    if not ns.command:
+        logger.info('Running both')
+        return
+    elif ns.command == 'stop':
+        logger.info('Stopping both')
+        return
 
-        p1 = sub.Popen([sys.argv[0], 'cloud'], stdout=sub.PIPE, bufsize=0)
-        p2 = sub.Popen(
-            [
-                'dzen2', '-dock', '-ta', 'l', '-sa', 'rc',
-                '-fn', font, '-h', '17'
-            ],
-            bufsize=0,
-            stdin=p1.stdout,
-            stderr=sub.PIPE,
-            stdout=sub.PIPE,
-        )
-        # p1.stdout.close()
+    if ns.command == 'storm':
+        if not ns.storm_command or ns.storm_command == 'start':
+            logger.info('Running storm')
+        else:
+            logger.info('Stopping storm')
 
-        # Will run 5eva
-        logger.info('Starting dem cloud')
-        p2.wait()
+    elif ns.command == 'cloud':
+        if not ns.cloud_command or ns.cloud_command == 'start':
+            logger.info('Running cloud')
+        else:
+            logger.info('Stopping cloud')
 
-    def storm_thread():
-        logger.info('Conjuring the storm...')
-        formatter = StormFormatter()
-        # formatter = StfuFormatter()
-        storm = Storm(formatter)
-        storm.setup()
-        storm.run()
 
-    ct = threading.Thread(None, cloud_thread)
-    ct.daemon = False
-    ct.start()
-
-    st = threading.Thread(None, storm_thread)
-    st.daemon = False
-    st.start()
+    # con = Conjurer()
+    # con.setup()
+    # con.run()
 
 
 if __name__ == '__main__':

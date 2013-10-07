@@ -8,6 +8,8 @@ logger = Logger('conf')
 
 xdg = os.getenv('XDG_CACHE_HOME', join(os.getenv('HOME'), '.cache'))
 ROOT = join(xdg, 'storm')
+STORM_PID = join(ROOT, 'storm.pid')
+CLOUD_PID = join(ROOT, 'cloud.pid')
 
 
 def get_global():
